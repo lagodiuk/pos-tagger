@@ -15,7 +15,7 @@ import javax.xml.stream.events.XMLEvent;
 public class XMLCorpusReader {
 
 	public static void main(String[] args) throws Exception {
-		String xmlCorpusPath = "/Users/yura/sandbox/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml";
+		String xmlCorpusPath = "/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml";
 
 		List<TaggedSentence> taggedSentences = getTaggedSentences(xmlCorpusPath, 2);
 

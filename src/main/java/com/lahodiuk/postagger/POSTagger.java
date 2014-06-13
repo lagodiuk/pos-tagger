@@ -2,6 +2,7 @@ package com.lahodiuk.postagger;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
@@ -23,7 +24,7 @@ public class POSTagger {
 		// Corpus downloaded from: http://opencorpora.org/?page=downloads
 		// (version without disambiguation)
 		List<TaggedSentence> taggedSentences =
-				XMLCorpusReader.getTaggedSentences("/Users/yura/sandbox/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 2);
+				XMLCorpusReader.getTaggedSentences("/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 2);
 
 		new POSTagger().train(taggedSentences);
 	}
@@ -40,7 +41,7 @@ public class POSTagger {
 
 	public void train(List<TaggedSentence> taggedSentences) throws Exception {
 
-		Collections.shuffle(taggedSentences);
+		Collections.shuffle(taggedSentences, new Random(1));
 		int toIndex = (taggedSentences.size() * 7) / 10;
 		System.out.println(toIndex);
 		List<TaggedSentence> trainingSet = taggedSentences.subList(0, toIndex);
