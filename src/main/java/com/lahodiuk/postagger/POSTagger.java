@@ -12,6 +12,7 @@ import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.tokenizers.Tokenizer;
 import weka.filters.Filter;
 import weka.filters.MultiFilter;
 import weka.filters.unsupervised.attribute.StringToWordVector;
@@ -103,16 +104,19 @@ public class POSTagger {
 		currentFilter.setAttributeIndices("first");
 		currentFilter.setAttributeNamePrefix("current_");
 		currentFilter.setOutputWordCounts(false);
+		currentFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector previousFilter = new StringToWordVector();
 		previousFilter.setAttributeIndices("first-1");
 		previousFilter.setAttributeNamePrefix("previous_");
 		previousFilter.setOutputWordCounts(false);
+		previousFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector followingFilter = new StringToWordVector();
 		followingFilter.setAttributeIndices("first-2");
 		followingFilter.setAttributeNamePrefix("following_");
 		followingFilter.setOutputWordCounts(false);
+		followingFilter.setTokenizer(new SpaceTokenizer());
 
 		MultiFilter multiFilter = new MultiFilter();
 		multiFilter.setInputFormat(trainingInstancesSet);
@@ -294,5 +298,34 @@ public class POSTagger {
 					}
 				},
 		};
+	}
+	
+	private static final class SpaceTokenizer extends Tokenizer {
+		private static final long serialVersionUID = 1L;
+		
+		private String[] tokens;
+		private int position;
+		
+		@Override
+		public void tokenize(String s) {
+			tokens = s.split("\\s+");
+			position = 0;
+		}
+		@Override
+		public Object nextElement() {
+			return tokens[position++];
+		}
+		@Override
+		public boolean hasMoreElements() {
+			return position < tokens.length;
+		}
+		@Override
+		public String getRevision() {
+			return null;
+		}
+		@Override
+		public String globalInfo() {
+			return null;
+		}
 	}
 }
