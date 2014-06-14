@@ -237,7 +237,8 @@ public class POSTagger {
 		}, new Feature("previousTokenGraphemes", FeatureType.STRING) {
 			@Override
 			public void addFeature(WordWindow window, Instance instance) {
-				String previousToken = window.getPreviousTokens().get(0);
+				List<String> previousTokens = window.getPreviousTokens();
+				String previousToken = previousTokens.get(previousTokens.size() - 1);
 				int previousTokenLength = previousToken.length();
 
 				StringBuilder graphemes = new StringBuilder();
@@ -284,7 +285,9 @@ public class POSTagger {
 		}, new Feature("previousTokenLength", FeatureType.NUMERIC) {
 			@Override
 			public void addFeature(WordWindow window, Instance instance) {
-				instance.setValue(this.getAttribute(), window.getPreviousTokens().get(0).length());
+				List<String> previousTokens = window.getPreviousTokens();
+				String previousToken = previousTokens.get(previousTokens.size() - 1);
+				instance.setValue(this.getAttribute(), previousToken.length());
 			}
 		}, new Feature("followingTokenLength", FeatureType.NUMERIC) {
 			@Override
