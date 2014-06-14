@@ -1,7 +1,10 @@
 package com.lahodiuk.postagger;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,6 +15,9 @@ public class Sentence {
 		System.out.println(sentence.getSentence());
 		for (String s : sentence.getTokens()) {
 			System.out.println(s);
+		}
+		for (WordWindow ww : sentence.getWordWindows(2, "_")) {
+			System.out.println(ww);
 		}
 	}
 
@@ -36,5 +42,49 @@ public class Sentence {
 
 	public String getSentence() {
 		return this.sentence;
+	}
+
+	public List<WordWindow> getWordWindows(int neighboursCount, String margin) {
+		List<WordWindow> wordWindows = new ArrayList<>();
+
+		Queue<String> previousTokens = new ArrayDeque<>(neighboursCount);
+		for (int i = 0; i < neighboursCount; i++) {
+			previousTokens.add(margin);
+		}
+
+		Queue<String> followingTokens = new ArrayDeque<>(neighboursCount);
+		Iterator<String> followingTokensIterator = this.tokens.iterator();
+		if (followingTokensIterator.hasNext()) {
+			// skip first token
+			followingTokensIterator.next();
+		}
+		for (int i = 0; i < neighboursCount; i++) {
+			if (followingTokensIterator.hasNext()) {
+				followingTokens.add(followingTokensIterator.next());
+			} else {
+				followingTokens.add(margin);
+			}
+		}
+
+		for (String token : this.tokens) {
+			WordWindow ww = new WordWindow();
+			ww.setPreviousTokens(previousTokens);
+			ww.setCurrentToken(token);
+			ww.setFollowingTokens(followingTokens);
+
+			wordWindows.add(ww);
+
+			previousTokens.poll();
+			previousTokens.add(token);
+
+			followingTokens.poll();
+			if (followingTokensIterator.hasNext()) {
+				followingTokens.add(followingTokensIterator.next());
+			} else {
+				followingTokens.add(margin);
+			}
+		}
+
+		return wordWindows;
 	}
 }
