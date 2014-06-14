@@ -25,7 +25,7 @@ public class POSTagger {
 		// Corpus downloaded from: http://opencorpora.org/?page=downloads
 		// (version without disambiguation)
 		List<TaggedSentence> taggedSentences =
-				XMLCorpusReader.getTaggedSentences("/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 2);
+				XMLCorpusReader.getTaggedSentences("/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 1);
 
 		new POSTagger().train(taggedSentences);
 	}
