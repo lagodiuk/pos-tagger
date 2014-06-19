@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
@@ -30,6 +32,29 @@ public class POSTagger {
 
 		POSTagger posTagger = new POSTagger();
 		posTagger.train(taggedSentences);
+
+		Map<String, Integer> tag2tagCount = new TreeMap<>();
+		for (TaggedSentence ts : taggedSentences) {
+			Tag previousTag = null;
+			for (TaggedToken tt : ts.getTaggedTokens()) {
+				if (previousTag == null) {
+					previousTag = tt.getTag();
+					continue;
+				}
+
+				String key = previousTag.name() + " - " + tt.getTag().name();
+
+				Integer count = tag2tagCount.get(key);
+				if (count == null) {
+					count = 0;
+				}
+				tag2tagCount.put(key, count + 1);
+			}
+		}
+
+		for (String key : tag2tagCount.keySet()) {
+			System.out.println(key + "\t" + tag2tagCount.get(key));
+		}
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
@@ -189,7 +214,6 @@ public class POSTagger {
 			attributes.addElement(feature.getAttribute());
 		}
 		attributes.addElement(TAG_ATTRIBUTE);
-		;
 		Instances instances = new Instances(datasetName, attributes, 1);
 		instances.setClass(TAG_ATTRIBUTE);
 		return instances;
@@ -225,6 +249,9 @@ public class POSTagger {
 					if (currentTokenLength > (i - 1)) {
 						String sufix = currentToken.substring(currentTokenLength - i, currentTokenLength).toLowerCase();
 						graphemes.append(sufix).append("$").append(" ");
+
+						String prefix = currentToken.substring(0, i).toLowerCase();
+						graphemes.append("^").append(prefix).append(" ");
 					}
 				}
 
