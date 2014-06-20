@@ -45,17 +45,17 @@ public class ViterbiAlgorithm {
 		int firstColumnIndex = 0;
 		double[] firstObserved = observed.get(firstColumnIndex);
 		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
-			matrix[rowIndex][firstColumnIndex].setValue(Math.log(firstObserved[rowIndex] + 1e-5) + Math.log(transitionProbability.start(states[rowIndex]) + 1e-5));
+			matrix[rowIndex][firstColumnIndex].setValue(this.log(firstObserved[rowIndex]) + this.log(transitionProbability.start(states[rowIndex])));
 		}
 
 		for (int columnIndex = 1; columnIndex < observedLength; columnIndex++) {
 			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
 				Cell parent = matrix[0][columnIndex - 1];
 				double parentProbability = parent.getValue()
-						+ Math.log(transitionProbability.transition(states[0], states[currStateIndex]) + 1e-5);
+						+ this.log(transitionProbability.transition(states[0], states[currStateIndex]));
 				for (int prevStateIndex = 1; prevStateIndex < statesCount; prevStateIndex++) {
 					double tmp = matrix[prevStateIndex][columnIndex - 1].getValue()
-							+ Math.log(transitionProbability.transition(states[prevStateIndex], states[currStateIndex]) + 1e-5);
+							+ this.log(transitionProbability.transition(states[prevStateIndex], states[currStateIndex]));
 					if (tmp > parentProbability) {
 						parentProbability = tmp;
 						parent = matrix[prevStateIndex][columnIndex - 1];
@@ -63,13 +63,13 @@ public class ViterbiAlgorithm {
 				}
 
 				matrix[currStateIndex][columnIndex].setParent(parent);
-				matrix[currStateIndex][columnIndex].setValue(parentProbability + Math.log(observed.get(columnIndex)[currStateIndex] + 1e-5));
+				matrix[currStateIndex][columnIndex].setValue(parentProbability + this.log(observed.get(columnIndex)[currStateIndex]));
 			}
 		}
 
 		int lastColumnIndex = observedLength - 1;
 		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
-			matrix[rowIndex][lastColumnIndex].setValue(matrix[rowIndex][lastColumnIndex].getValue() + Math.log(transitionProbability.end(states[rowIndex]) + 1e-5));
+			matrix[rowIndex][lastColumnIndex].setValue(matrix[rowIndex][lastColumnIndex].getValue() + this.log(transitionProbability.end(states[rowIndex])));
 		}
 
 		Cell lastCell = matrix[0][lastColumnIndex];
@@ -97,6 +97,10 @@ public class ViterbiAlgorithm {
 			}
 		}
 		return matrix;
+	}
+
+	private double log(double x) {
+		return Math.log(x + 1e-5);
 	}
 
 	private static class Cell {
