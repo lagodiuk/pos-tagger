@@ -44,7 +44,7 @@ public class ViterbiAlgorithm {
 
 		int firstColumnIndex = 0;
 		double[] firstObserved = observed.get(firstColumnIndex);
-		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
+		for (int rowIndex = 0; rowIndex < statesCount; rowIndex++) {
 			matrix[rowIndex][firstColumnIndex].setValue(this.log(firstObserved[rowIndex]) + this.log(transitionProbability.start(states[rowIndex])));
 		}
 
@@ -68,7 +68,7 @@ public class ViterbiAlgorithm {
 		}
 
 		int lastColumnIndex = observedLength - 1;
-		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
+		for (int rowIndex = 0; rowIndex < statesCount; rowIndex++) {
 			matrix[rowIndex][lastColumnIndex].setValue(matrix[rowIndex][lastColumnIndex].getValue() + this.log(transitionProbability.end(states[rowIndex])));
 		}
 
