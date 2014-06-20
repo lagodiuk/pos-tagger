@@ -48,7 +48,7 @@ public class ViterbiAlgorithm {
 			matrix[rowIndex][firstColumnIndex].setValue(this.log(firstObserved[rowIndex]) + this.log(transitionProbability.start(states[rowIndex])));
 		}
 
-		for (int columnIndex = 1; columnIndex < observedLength; columnIndex++) {
+		for (int columnIndex = firstColumnIndex + 1; columnIndex < observedLength; columnIndex++) {
 			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
 				Cell parent = matrix[0][columnIndex - 1];
 				double parentProbability = parent.getValue()
@@ -79,13 +79,17 @@ public class ViterbiAlgorithm {
 			}
 		}
 
+		Stack<String> path = this.backtrace(lastCell);
+		return path;
+	}
+
+	private Stack<String> backtrace(Cell lastCell) {
 		Stack<String> path = new Stack<>();
 
 		while (lastCell != null) {
 			path.push(lastCell.getState());
 			lastCell = lastCell.getParent();
 		}
-
 		return path;
 	}
 
