@@ -37,12 +37,10 @@ public class ViterbiAlgorithm {
 	}
 
 	public Iterable<String> getMostProbablePath(String[] states, List<double[]> observed, TransitionProbability transitionProbability) {
-		Cell[][] matrix = new Cell[states.length][observed.size()];
-		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
-			for (int columnIndex = 0; columnIndex < observed.size(); columnIndex++) {
-				matrix[rowIndex][columnIndex] = new Cell(states[rowIndex]);
-			}
-		}
+		int statesCount = states.length;
+		int observedLength = observed.size();
+
+		Cell[][] matrix = this.createMatrix(states, statesCount, observedLength);
 
 		int firstColumnIndex = 0;
 		double[] firstObserved = observed.get(firstColumnIndex);
@@ -50,12 +48,12 @@ public class ViterbiAlgorithm {
 			matrix[rowIndex][firstColumnIndex].setValue(Math.log(firstObserved[rowIndex] + 1e-5) + Math.log(transitionProbability.start(states[rowIndex]) + 1e-5));
 		}
 
-		for (int columnIndex = 1; columnIndex < observed.size(); columnIndex++) {
-			for (int currStateIndex = 0; currStateIndex < states.length; currStateIndex++) {
+		for (int columnIndex = 1; columnIndex < observedLength; columnIndex++) {
+			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
 				Cell parent = matrix[0][columnIndex - 1];
 				double parentProbability = parent.getValue()
 						+ Math.log(transitionProbability.transition(states[0], states[currStateIndex]) + 1e-5);
-				for (int prevStateIndex = 1; prevStateIndex < states.length; prevStateIndex++) {
+				for (int prevStateIndex = 1; prevStateIndex < statesCount; prevStateIndex++) {
 					double tmp = matrix[prevStateIndex][columnIndex - 1].getValue()
 							+ Math.log(transitionProbability.transition(states[prevStateIndex], states[currStateIndex]) + 1e-5);
 					if (tmp > parentProbability) {
@@ -69,13 +67,13 @@ public class ViterbiAlgorithm {
 			}
 		}
 
-		int lastColumnIndex = observed.size() - 1;
+		int lastColumnIndex = observedLength - 1;
 		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
 			matrix[rowIndex][lastColumnIndex].setValue(matrix[rowIndex][lastColumnIndex].getValue() + Math.log(transitionProbability.end(states[rowIndex]) + 1e-5));
 		}
 
 		Cell lastCell = matrix[0][lastColumnIndex];
-		for (int lastStateIndex = 1; lastStateIndex < states.length; lastStateIndex++) {
+		for (int lastStateIndex = 1; lastStateIndex < statesCount; lastStateIndex++) {
 			if (matrix[lastStateIndex][lastColumnIndex].getValue() > lastCell.getValue()) {
 				lastCell = matrix[lastStateIndex][lastColumnIndex];
 			}
@@ -89,6 +87,16 @@ public class ViterbiAlgorithm {
 		}
 
 		return path;
+	}
+
+	private Cell[][] createMatrix(String[] states, int statesCount, int observedLength) {
+		Cell[][] matrix = new Cell[statesCount][observedLength];
+		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
+			for (int columnIndex = 0; columnIndex < observedLength; columnIndex++) {
+				matrix[rowIndex][columnIndex] = new Cell(states[rowIndex]);
+			}
+		}
+		return matrix;
 	}
 
 	private static class Cell {
