@@ -43,9 +43,12 @@ public class ViterbiAlgorithm {
 		Cell[][] matrix = this.createMatrix(states, statesCount, observedLength);
 
 		int firstColumnIndex = 0;
+
 		double[] firstObserved = observed.get(firstColumnIndex);
 		for (int rowIndex = 0; rowIndex < statesCount; rowIndex++) {
-			matrix[rowIndex][firstColumnIndex].setValue(this.log(firstObserved[rowIndex]) + this.log(transitionProbability.start(states[rowIndex])));
+			String state = states[rowIndex];
+			double logProbability = this.log(firstObserved[rowIndex]) + this.log(transitionProbability.start(state));
+			matrix[rowIndex][firstColumnIndex].setValue(logProbability);
 		}
 
 		for (int columnIndex = firstColumnIndex + 1; columnIndex < observedLength; columnIndex++) {
