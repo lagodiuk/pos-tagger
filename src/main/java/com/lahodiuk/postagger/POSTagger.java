@@ -3,10 +3,10 @@ package com.lahodiuk.postagger;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.TreeMap;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
@@ -33,32 +33,54 @@ public class POSTagger {
 		POSTagger posTagger = new POSTagger();
 		posTagger.train(taggedSentences);
 
-		Map<String, Integer> tag2tagCount = new TreeMap<>();
-		for (TaggedSentence ts : taggedSentences) {
-			Tag previousTag = null;
-			for (TaggedToken tt : ts.getTaggedTokens()) {
-				if (previousTag == null) {
-					previousTag = tt.getTag();
-					continue;
-				}
-
-				String key = previousTag.name() + " - " + tt.getTag().name();
-
-				Integer count = tag2tagCount.get(key);
-				if (count == null) {
-					count = 0;
-				}
-				tag2tagCount.put(key, count + 1);
-			}
-		}
-
-		for (String key : tag2tagCount.keySet()) {
-			System.out.println(key + "\t" + tag2tagCount.get(key));
-		}
+		calculateTagTransitions(taggedSentences);
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
 			posTagger.doTagging(new Sentence(br.readLine()));
+		}
+	}
+
+	private static void calculateTagTransitions(List<TaggedSentence> taggedSentences) {
+		Map<Tag, Map<Tag, Integer>> tag2tagCount = new HashMap<>();
+		for (Tag prevTag : Tag.values()) {
+			tag2tagCount.put(prevTag, new HashMap<>());
+			for (Tag currTag : Tag.values()) {
+				tag2tagCount.get(prevTag).put(currTag, 1);
+			}
+		}
+
+		Map<Tag, Integer> tagStart = new HashMap<>();
+		for (Tag tag : Tag.values()) {
+			tagStart.put(tag, 1);
+		}
+
+		Map<Tag, Integer> tagEnd = new HashMap<>();
+		for (Tag tag : Tag.values()) {
+			tagEnd.put(tag, 1);
+		}
+
+		for (TaggedSentence ts : taggedSentences) {
+			Tag previousTag = null;
+
+			for (TaggedToken tt : ts.getTaggedTokens()) {
+				Tag currentTag = tt.getTag();
+
+				if (previousTag == null) {
+					int count = tagStart.get(currentTag);
+					tagStart.put(currentTag, count + 1);
+
+					previousTag = currentTag;
+					continue;
+				}
+
+				int count = tag2tagCount.get(previousTag).get(currentTag);
+				tag2tagCount.get(previousTag).put(currentTag, count + 1);
+				previousTag = currentTag;
+			}
+
+			int count = tagEnd.get(previousTag);
+			tagEnd.put(previousTag, count + 1);
 		}
 	}
 
