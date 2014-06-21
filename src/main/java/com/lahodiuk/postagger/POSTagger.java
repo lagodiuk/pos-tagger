@@ -42,22 +42,22 @@ public class POSTagger {
 	}
 
 	private static void calculateTagTransitions(List<TaggedSentence> taggedSentences) {
-		Map<Tag, Map<Tag, Integer>> tag2tagCount = new HashMap<>();
+		Map<Tag, Map<Tag, Double>> tag2tagCount = new HashMap<>();
 		for (Tag prevTag : Tag.values()) {
 			tag2tagCount.put(prevTag, new HashMap<>());
 			for (Tag currTag : Tag.values()) {
-				tag2tagCount.get(prevTag).put(currTag, 1);
+				tag2tagCount.get(prevTag).put(currTag, 1.0);
 			}
 		}
 
-		Map<Tag, Integer> tagStart = new HashMap<>();
+		Map<Tag, Double> tagStart = new HashMap<>();
 		for (Tag tag : Tag.values()) {
-			tagStart.put(tag, 1);
+			tagStart.put(tag, 1.0);
 		}
 
-		Map<Tag, Integer> tagEnd = new HashMap<>();
+		Map<Tag, Double> tagEnd = new HashMap<>();
 		for (Tag tag : Tag.values()) {
-			tagEnd.put(tag, 1);
+			tagEnd.put(tag, 1.0);
 		}
 
 		for (TaggedSentence ts : taggedSentences) {
@@ -67,20 +67,41 @@ public class POSTagger {
 				Tag currentTag = tt.getTag();
 
 				if (previousTag == null) {
-					int count = tagStart.get(currentTag);
+					double count = tagStart.get(currentTag);
 					tagStart.put(currentTag, count + 1);
 
 					previousTag = currentTag;
 					continue;
 				}
 
-				int count = tag2tagCount.get(previousTag).get(currentTag);
+				double count = tag2tagCount.get(previousTag).get(currentTag);
 				tag2tagCount.get(previousTag).put(currentTag, count + 1);
 				previousTag = currentTag;
 			}
 
-			int count = tagEnd.get(previousTag);
+			double count = tagEnd.get(previousTag);
 			tagEnd.put(previousTag, count + 1);
+		}
+
+		normalize(tagStart);
+		normalize(tagEnd);
+		for (Tag previousTag : tag2tagCount.keySet()) {
+			normalize(tag2tagCount.get(previousTag));
+		}
+
+		System.out.println(tagStart);
+		System.out.println(tagEnd);
+		System.out.println(tag2tagCount);
+	}
+
+	private static void normalize(Map<Tag, Double> map) {
+		double sum = 0.0;
+		for (Double v : map.values()) {
+			sum += v;
+		}
+		for (Tag key : map.keySet()) {
+			double normalized = map.get(key) / sum;
+			map.put(key, normalized);
 		}
 	}
 
