@@ -22,6 +22,7 @@ import weka.filters.MultiFilter;
 import weka.filters.unsupervised.attribute.StringToWordVector;
 
 import com.lahodiuk.postagger.Feature.FeatureType;
+import com.lahodiuk.postagger.viterbi.ViterbiAlgorithm.TransitionProbability;
 
 public class POSTagger {
 
@@ -108,6 +109,26 @@ public class POSTagger {
 				double normalized = map.get(key) / sum;
 				map.put(key, normalized);
 			}
+		}
+
+		public TransitionProbability getTransitionProbability() {
+			return new TransitionProbability() {
+
+				@Override
+				public double transition(String fromState, String toState) {
+					return HMMTagger.this.tag2tagCount.get(Tag.valueOf(fromState)).get(Tag.valueOf(toState));
+				}
+
+				@Override
+				public double start(String state) {
+					return HMMTagger.this.tagStart.get(Tag.valueOf(state));
+				}
+
+				@Override
+				public double end(String state) {
+					return HMMTagger.this.tagEnd.get(Tag.valueOf(state));
+				}
+			};
 		}
 	}
 
