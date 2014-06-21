@@ -42,43 +42,65 @@ public class ViterbiAlgorithm {
 
 		Cell[][] matrix = this.createMatrix(states, statesCount, observedLength);
 
-		int firstColumnIndex = 0;
+		int firstObservedIndex = 0;
 
-		double[] firstObserved = observed.get(firstColumnIndex);
-		for (int rowIndex = 0; rowIndex < statesCount; rowIndex++) {
-			String state = states[rowIndex];
-			double logProbability = this.log(firstObserved[rowIndex]) + this.log(transitionProbability.start(state));
-			matrix[rowIndex][firstColumnIndex].setValue(logProbability);
+		double[] firstObserved = observed.get(firstObservedIndex);
+		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
+			String state = states[stateIndex];
+			double logStartProbability = this.log(firstObserved[stateIndex])
+					+ this.log(transitionProbability.start(state));
+			matrix[stateIndex][firstObservedIndex].setValue(logStartProbability);
 		}
 
-		for (int columnIndex = firstColumnIndex + 1; columnIndex < observedLength; columnIndex++) {
+		for (int observedIndex = firstObservedIndex + 1; observedIndex < observedLength; observedIndex++) {
+
+			double[] currentObserved = observed.get(observedIndex);
+
 			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
-				Cell parent = matrix[0][columnIndex - 1];
-				double parentProbability = parent.getValue()
-						+ this.log(transitionProbability.transition(states[0], states[currStateIndex]));
-				for (int prevStateIndex = 1; prevStateIndex < statesCount; prevStateIndex++) {
-					double tmp = matrix[prevStateIndex][columnIndex - 1].getValue()
-							+ this.log(transitionProbability.transition(states[prevStateIndex], states[currStateIndex]));
-					if (tmp > parentProbability) {
-						parentProbability = tmp;
-						parent = matrix[prevStateIndex][columnIndex - 1];
+
+				String currentState = states[currStateIndex];
+
+				Cell bestParentCell = null;
+				double bestParentLogProbability = Double.NEGATIVE_INFINITY;
+
+				for (int prevStateIndex = 0; prevStateIndex < statesCount; prevStateIndex++) {
+
+					String parentState = states[prevStateIndex];
+
+					Cell currentParentCell = matrix[prevStateIndex][observedIndex - 1];
+					double currentParentLogProbability = currentParentCell.getValue() + this.log(transitionProbability.transition(parentState, currentState));
+
+					if (currentParentLogProbability > bestParentLogProbability) {
+						bestParentLogProbability = currentParentLogProbability;
+						bestParentCell = currentParentCell;
 					}
 				}
 
-				matrix[currStateIndex][columnIndex].setParent(parent);
-				matrix[currStateIndex][columnIndex].setValue(parentProbability + this.log(observed.get(columnIndex)[currStateIndex]));
+				Cell currentCell = matrix[currStateIndex][observedIndex];
+				double currentLogProbability = bestParentLogProbability + this.log(currentObserved[currStateIndex]);
+
+				currentCell.setParent(bestParentCell);
+				currentCell.setValue(currentLogProbability);
 			}
 		}
 
-		int lastColumnIndex = observedLength - 1;
-		for (int rowIndex = 0; rowIndex < statesCount; rowIndex++) {
-			matrix[rowIndex][lastColumnIndex].setValue(matrix[rowIndex][lastColumnIndex].getValue() + this.log(transitionProbability.end(states[rowIndex])));
+		int lastObservedIndex = observedLength - 1;
+
+		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
+			String state = states[stateIndex];
+			Cell cell = matrix[stateIndex][lastObservedIndex];
+
+			double logEndProbability = cell.getValue() + this.log(transitionProbability.end(state));
+
+			cell.setValue(logEndProbability);
 		}
 
-		Cell lastCell = matrix[0][lastColumnIndex];
+		Cell lastCell = matrix[0][lastObservedIndex];
 		for (int lastStateIndex = 1; lastStateIndex < statesCount; lastStateIndex++) {
-			if (matrix[lastStateIndex][lastColumnIndex].getValue() > lastCell.getValue()) {
-				lastCell = matrix[lastStateIndex][lastColumnIndex];
+			Cell cell = matrix[lastStateIndex][lastObservedIndex];
+
+			if (cell.getValue() > lastCell.getValue()) {
+				lastCell = cell;
 			}
 		}
 
@@ -98,9 +120,10 @@ public class ViterbiAlgorithm {
 
 	private Cell[][] createMatrix(String[] states, int statesCount, int observedLength) {
 		Cell[][] matrix = new Cell[statesCount][observedLength];
-		for (int rowIndex = 0; rowIndex < matrix.length; rowIndex++) {
-			for (int columnIndex = 0; columnIndex < observedLength; columnIndex++) {
-				matrix[rowIndex][columnIndex] = new Cell(states[rowIndex]);
+		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
+			for (int observedIndex = 0; observedIndex < observedLength; observedIndex++) {
+				String state = states[stateIndex];
+				matrix[stateIndex][observedIndex] = new Cell(state);
 			}
 		}
 		return matrix;
