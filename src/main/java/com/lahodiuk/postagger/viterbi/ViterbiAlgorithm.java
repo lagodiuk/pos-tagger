@@ -46,9 +46,11 @@ public class ViterbiAlgorithm {
 
 		double[] firstObserved = observed.get(firstObservedIndex);
 		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
+			double stateProbability = firstObserved[stateIndex];
 			String state = states[stateIndex];
-			double logStartProbability = this.log(firstObserved[stateIndex])
-					+ this.log(transitionProbability.start(state));
+			double stateStartProbability = transitionProbability.start(state);
+
+			double logStartProbability = this.log(stateProbability) + this.log(stateStartProbability);
 			matrix[stateIndex][firstObservedIndex].setValue(logStartProbability);
 		}
 
@@ -60,27 +62,29 @@ public class ViterbiAlgorithm {
 
 				String currentState = states[currStateIndex];
 
-				Cell bestParentCell = null;
+				Cell bestParent = null;
 				double bestParentLogProbability = Double.NEGATIVE_INFINITY;
 
 				for (int prevStateIndex = 0; prevStateIndex < statesCount; prevStateIndex++) {
 
 					String parentState = states[prevStateIndex];
+					double previousToCurrentTransitionProbability = transitionProbability.transition(parentState, currentState);
 
-					Cell currentParentCell = matrix[prevStateIndex][observedIndex - 1];
-					double currentParentLogProbability = currentParentCell.getValue() + this.log(transitionProbability.transition(parentState, currentState));
+					Cell currentParent = matrix[prevStateIndex][observedIndex - 1];
+					double currentParentLogProbability = currentParent.getValue() + this.log(previousToCurrentTransitionProbability);
 
 					if (currentParentLogProbability > bestParentLogProbability) {
 						bestParentLogProbability = currentParentLogProbability;
-						bestParentCell = currentParentCell;
+						bestParent = currentParent;
 					}
 				}
 
-				Cell currentCell = matrix[currStateIndex][observedIndex];
-				double currentLogProbability = bestParentLogProbability + this.log(currentObserved[currStateIndex]);
+				Cell current = matrix[currStateIndex][observedIndex];
+				double currentStateProbability = currentObserved[currStateIndex];
+				double currentLogProbability = bestParentLogProbability + this.log(currentStateProbability);
 
-				currentCell.setParent(bestParentCell);
-				currentCell.setValue(currentLogProbability);
+				current.setParent(bestParent);
+				current.setValue(currentLogProbability);
 			}
 		}
 
@@ -88,9 +92,10 @@ public class ViterbiAlgorithm {
 
 		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
 			String state = states[stateIndex];
-			Cell cell = matrix[stateIndex][lastObservedIndex];
+			double stateEndProbability = transitionProbability.end(state);
 
-			double logEndProbability = cell.getValue() + this.log(transitionProbability.end(state));
+			Cell cell = matrix[stateIndex][lastObservedIndex];
+			double logEndProbability = cell.getValue() + this.log(stateEndProbability);
 
 			cell.setValue(logEndProbability);
 		}
