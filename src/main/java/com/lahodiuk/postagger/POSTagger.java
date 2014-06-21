@@ -2,8 +2,10 @@ package com.lahodiuk.postagger;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -22,6 +24,7 @@ import weka.filters.MultiFilter;
 import weka.filters.unsupervised.attribute.StringToWordVector;
 
 import com.lahodiuk.postagger.Feature.FeatureType;
+import com.lahodiuk.postagger.viterbi.ViterbiAlgorithm;
 import com.lahodiuk.postagger.viterbi.ViterbiAlgorithm.TransitionProbability;
 
 public class POSTagger {
@@ -38,11 +41,15 @@ public class POSTagger {
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
-			posTagger.doTagging(new Sentence(br.readLine()));
+			List<ClassifiedToken> classifiedTokens = posTagger.doTagging(new Sentence(br.readLine()));
+			hmmTagger.inference(classifiedTokens);
+			System.out.println();
 		}
 	}
 
 	public static class HMMTagger {
+
+		private static final Tag[] TAGS = Tag.values();
 
 		private Map<Tag, Map<Tag, Double>> tag2tagCount = new HashMap<>();
 
@@ -51,18 +58,18 @@ public class POSTagger {
 		private Map<Tag, Double> tagEnd = new HashMap<>();
 
 		public HMMTagger(List<TaggedSentence> taggedSentences) {
-			for (Tag prevTag : Tag.values()) {
+			for (Tag prevTag : TAGS) {
 				this.tag2tagCount.put(prevTag, new HashMap<>());
-				for (Tag currTag : Tag.values()) {
+				for (Tag currTag : TAGS) {
 					this.tag2tagCount.get(prevTag).put(currTag, 1.0);
 				}
 			}
 
-			for (Tag tag : Tag.values()) {
+			for (Tag tag : TAGS) {
 				this.tagStart.put(tag, 1.0);
 			}
 
-			for (Tag tag : Tag.values()) {
+			for (Tag tag : TAGS) {
 				this.tagEnd.put(tag, 1.0);
 			}
 
@@ -111,6 +118,30 @@ public class POSTagger {
 			}
 		}
 
+		public void inference(List<ClassifiedToken> classifiedTokens) {
+			String[] states = new String[TAGS.length];
+			int i = 0;
+			for (Tag tag : TAGS) {
+				states[i++] = tag.name();
+			}
+
+			List<double[]> items = new ArrayList<>();
+			for (ClassifiedToken ct : classifiedTokens) {
+				double[] item = new double[TAGS.length];
+				int j = 0;
+				for (Tag tag : TAGS) {
+					item[j++] = ct.getProbability(tag);
+				}
+				items.add(item);
+			}
+
+			Iterable<String> tags = new ViterbiAlgorithm().getMostProbablePath(states, items, this.getTransitionProbability());
+			Iterator<ClassifiedToken> ctIterator = classifiedTokens.iterator();
+			for (String tag : tags) {
+				System.out.print(ctIterator.next().getToken() + "(" + tag + ")" + " ");
+			}
+		}
+
 		public TransitionProbability getTransitionProbability() {
 			return new TransitionProbability() {
 
@@ -122,11 +153,13 @@ public class POSTagger {
 				@Override
 				public double start(String state) {
 					return HMMTagger.this.tagStart.get(Tag.valueOf(state));
+					// return 1;
 				}
 
 				@Override
 				public double end(String state) {
 					return HMMTagger.this.tagEnd.get(Tag.valueOf(state));
+					// return 1;
 				}
 			};
 		}
@@ -166,7 +199,9 @@ public class POSTagger {
 		System.out.println(eval.toMatrixString());
 	}
 
-	public void doTagging(Sentence sentence) throws Exception {
+	public List<ClassifiedToken> doTagging(Sentence sentence) throws Exception {
+		List<ClassifiedToken> result = new ArrayList<>();
+
 		System.out.println(sentence.getSentence());
 		System.out.println();
 
@@ -179,15 +214,24 @@ public class POSTagger {
 			int tagIndex = 0;
 
 			System.out.println(ww.getCurrentToken());
+
+			ClassifiedToken classifiedToken = new ClassifiedToken(ww.getCurrentToken());
+
 			for (Tag tag : Tag.values()) {
 				double probability = distr[tagIndex++];
+				classifiedToken.setProbability(tag, probability);
 				if (probability < 0.1) {
 					continue;
 				}
 				System.out.println(tag.name() + "\t" + tag.getRussianName() + "\t" + probability);
 			}
+
+			result.add(classifiedToken);
+
 			System.out.println();
 		}
+
+		return result;
 	}
 
 	private Classifier buildClassifier(Instances trainingInstancesSet) throws Exception {

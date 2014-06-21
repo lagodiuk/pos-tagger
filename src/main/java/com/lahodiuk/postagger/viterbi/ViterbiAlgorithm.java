@@ -1,8 +1,9 @@
 package com.lahodiuk.postagger.viterbi;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Stack;
 
 public class ViterbiAlgorithm {
 
@@ -126,17 +127,20 @@ public class ViterbiAlgorithm {
 			}
 		}
 
-		Stack<String> path = this.backtrace(lastCell);
+		Iterable<String> path = this.backtrace(lastCell);
 		return path;
 	}
 
-	private Stack<String> backtrace(Cell lastCell) {
-		Stack<String> path = new Stack<>();
+	private Iterable<String> backtrace(Cell lastCell) {
+		List<String> path = new ArrayList<>();
 
 		while (lastCell != null) {
-			path.push(lastCell.getState());
+			path.add(lastCell.getState());
 			lastCell = lastCell.getParent();
 		}
+
+		Collections.reverse(path);
+
 		return path;
 	}
 
