@@ -36,14 +36,21 @@ public class ViterbiAlgorithm {
 		}
 	}
 
+	/**
+	 * Complexity: O(R * S^2) <br/>
+	 * R - number of observed items <br/>
+	 * S - number of hidden states
+	 */
 	public Iterable<String> getMostProbablePath(String[] states, List<double[]> observed, TransitionProbability transitionProbability) {
 		int statesCount = states.length;
 		int observedLength = observed.size();
 
 		Cell[][] matrix = this.createMatrix(states, statesCount, observedLength);
 
+		// Initializing first column of the hidden-states matrix (taking into
+		// account probability, that any state - can be the starting state of
+		// the sequence of observations)
 		int firstObservedIndex = 0;
-
 		double[] firstObserved = observed.get(firstObservedIndex);
 		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
 			double stateProbability = firstObserved[stateIndex];
@@ -54,10 +61,13 @@ public class ViterbiAlgorithm {
 			matrix[stateIndex][firstObservedIndex].setValue(logStartProbability);
 		}
 
+		// Iterating over all the columns (which corresponding to observations),
+		// and maximizing probability of the hidden states (in greedy way)
 		for (int observedIndex = firstObservedIndex + 1; observedIndex < observedLength; observedIndex++) {
 
 			double[] currentObserved = observed.get(observedIndex);
 
+			// For each hidden state (of current observed item)
 			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
 
 				String currentState = states[currStateIndex];
@@ -65,12 +75,15 @@ public class ViterbiAlgorithm {
 				Cell bestParent = null;
 				double bestParentLogProbability = Double.NEGATIVE_INFINITY;
 
+				// Check all hidden states of previous observed item
 				for (int prevStateIndex = 0; prevStateIndex < statesCount; prevStateIndex++) {
 
 					String parentState = states[prevStateIndex];
 					double previousToCurrentTransitionProbability = transitionProbability.transition(parentState, currentState);
 
 					Cell currentParent = matrix[prevStateIndex][observedIndex - 1];
+					// Find such previous state, which will maximize expression:
+					// previous_state_probability * transition_probability
 					double currentParentLogProbability = currentParent.getValue() + this.log(previousToCurrentTransitionProbability);
 
 					if (currentParentLogProbability > bestParentLogProbability) {
@@ -88,8 +101,10 @@ public class ViterbiAlgorithm {
 			}
 		}
 
+		// Changing last column of the matrix (taking into
+		// account probability, that any state - can be the ending state of
+		// the sequence of observations)
 		int lastObservedIndex = observedLength - 1;
-
 		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
 			String state = states[stateIndex];
 			double stateEndProbability = transitionProbability.end(state);
@@ -100,6 +115,8 @@ public class ViterbiAlgorithm {
 			cell.setValue(logEndProbability);
 		}
 
+		// Finding the cell from last column - which have the highest
+		// probability
 		Cell lastCell = matrix[0][lastObservedIndex];
 		for (int lastStateIndex = 1; lastStateIndex < statesCount; lastStateIndex++) {
 			Cell cell = matrix[lastStateIndex][lastObservedIndex];
