@@ -30,10 +30,10 @@ public class POSTagger {
 		// (version without disambiguation)
 		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences("/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 1);
 
+		HMMTagger hmmTagger = new HMMTagger(taggedSentences);
+
 		POSTagger posTagger = new POSTagger();
 		posTagger.train(taggedSentences);
-
-		calculateTagTransitions(taggedSentences);
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
@@ -41,67 +41,73 @@ public class POSTagger {
 		}
 	}
 
-	private static void calculateTagTransitions(List<TaggedSentence> taggedSentences) {
-		Map<Tag, Map<Tag, Double>> tag2tagCount = new HashMap<>();
-		for (Tag prevTag : Tag.values()) {
-			tag2tagCount.put(prevTag, new HashMap<>());
-			for (Tag currTag : Tag.values()) {
-				tag2tagCount.get(prevTag).put(currTag, 1.0);
+	public static class HMMTagger {
+
+		private Map<Tag, Map<Tag, Double>> tag2tagCount = new HashMap<>();
+
+		private Map<Tag, Double> tagStart = new HashMap<>();
+
+		private Map<Tag, Double> tagEnd = new HashMap<>();
+
+		public HMMTagger(List<TaggedSentence> taggedSentences) {
+			for (Tag prevTag : Tag.values()) {
+				this.tag2tagCount.put(prevTag, new HashMap<>());
+				for (Tag currTag : Tag.values()) {
+					this.tag2tagCount.get(prevTag).put(currTag, 1.0);
+				}
 			}
-		}
 
-		Map<Tag, Double> tagStart = new HashMap<>();
-		for (Tag tag : Tag.values()) {
-			tagStart.put(tag, 1.0);
-		}
+			for (Tag tag : Tag.values()) {
+				this.tagStart.put(tag, 1.0);
+			}
 
-		Map<Tag, Double> tagEnd = new HashMap<>();
-		for (Tag tag : Tag.values()) {
-			tagEnd.put(tag, 1.0);
-		}
+			for (Tag tag : Tag.values()) {
+				this.tagEnd.put(tag, 1.0);
+			}
 
-		for (TaggedSentence ts : taggedSentences) {
-			Tag previousTag = null;
+			for (TaggedSentence ts : taggedSentences) {
+				Tag previousTag = null;
 
-			for (TaggedToken tt : ts.getTaggedTokens()) {
-				Tag currentTag = tt.getTag();
+				for (TaggedToken tt : ts.getTaggedTokens()) {
+					Tag currentTag = tt.getTag();
 
-				if (previousTag == null) {
-					double count = tagStart.get(currentTag);
-					tagStart.put(currentTag, count + 1);
+					if (previousTag == null) {
+						double count = this.tagStart.get(currentTag);
+						this.tagStart.put(currentTag, count + 1);
 
+						previousTag = currentTag;
+						continue;
+					}
+
+					double count = this.tag2tagCount.get(previousTag).get(currentTag);
+					this.tag2tagCount.get(previousTag).put(currentTag, count + 1);
 					previousTag = currentTag;
-					continue;
 				}
 
-				double count = tag2tagCount.get(previousTag).get(currentTag);
-				tag2tagCount.get(previousTag).put(currentTag, count + 1);
-				previousTag = currentTag;
+				double count = this.tagEnd.get(previousTag);
+				this.tagEnd.put(previousTag, count + 1);
 			}
 
-			double count = tagEnd.get(previousTag);
-			tagEnd.put(previousTag, count + 1);
+			this.normalize(this.tagStart);
+			this.normalize(this.tagEnd);
+			for (Tag previousTag : this.tag2tagCount.keySet()) {
+				this.normalize(this.tag2tagCount.get(previousTag));
+			}
+
+			System.out.println(this.tagStart);
+			System.out.println(this.tagEnd);
+			System.out.println(this.tag2tagCount);
 		}
 
-		normalize(tagStart);
-		normalize(tagEnd);
-		for (Tag previousTag : tag2tagCount.keySet()) {
-			normalize(tag2tagCount.get(previousTag));
-		}
-
-		System.out.println(tagStart);
-		System.out.println(tagEnd);
-		System.out.println(tag2tagCount);
-	}
-
-	private static void normalize(Map<Tag, Double> map) {
-		double sum = 0.0;
-		for (Double v : map.values()) {
-			sum += v;
-		}
-		for (Tag key : map.keySet()) {
-			double normalized = map.get(key) / sum;
-			map.put(key, normalized);
+		private void normalize(Map<Tag, Double> map) {
+			double sum = 0.0;
+			for (Double v : map.values()) {
+				sum += v;
+			}
+			for (Tag key : map.keySet()) {
+				double normalized = map.get(key) / sum;
+				map.put(key, normalized);
+			}
 		}
 	}
 
