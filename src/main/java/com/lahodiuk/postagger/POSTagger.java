@@ -180,7 +180,7 @@ public class POSTagger {
 	public void train(List<TaggedSentence> taggedSentences) throws Exception {
 
 		Collections.shuffle(taggedSentences, new Random(1));
-		int toIndex = (taggedSentences.size() * 7) / 10;
+		int toIndex = (taggedSentences.size() * 8) / 10;
 		System.out.println(toIndex);
 		List<TaggedSentence> trainingSet = taggedSentences.subList(0, toIndex);
 		List<TaggedSentence> validationSet = taggedSentences.subList(toIndex + 1, taggedSentences.size());
@@ -388,6 +388,9 @@ public class POSTagger {
 					if (previousTokenLength > (i - 1)) {
 						String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase();
 						graphemes.append(sufix).append("$").append(" ");
+
+						String prefix = previousToken.substring(0, i).toLowerCase();
+						graphemes.append("^").append(prefix).append(" ");
 					}
 				}
 
@@ -409,6 +412,9 @@ public class POSTagger {
 					if (followingTokenLength > (i - 1)) {
 						String sufix = followingToken.substring(followingTokenLength - i, followingTokenLength).toLowerCase();
 						graphemes.append(sufix).append("$").append(" ");
+
+						String prefix = followingToken.substring(0, i).toLowerCase();
+						graphemes.append("^").append(prefix).append(" ");
 					}
 				}
 
