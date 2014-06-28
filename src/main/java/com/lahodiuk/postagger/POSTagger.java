@@ -31,13 +31,9 @@ public class POSTagger {
 
 		HMMTagger hmmTagger = new HMMTagger(taggedSentences);
 
-		POSTagger posTagger = new POSTagger();
-		posTagger.train(taggedSentences);
-
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
-			List<ClassifiedToken> classifiedTokens = posTagger.doTagging(new Sentence(br.readLine()));
-			hmmTagger.inference(classifiedTokens);
+			hmmTagger.inference(new Sentence(br.readLine()));
 			System.out.println();
 		}
 	}

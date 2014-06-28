@@ -10,10 +10,7 @@ public class ViterbiAlgorithm {
 	public static void main(String[] args) {
 		Iterable<String> path = new ViterbiAlgorithm().getMostProbablePath(
 				new String[] { "cow", "duck" },
-				Arrays.asList(
-						new double[] { 0.9, 0.0 }, // moo
-						new double[] { 0.1, 0.4 }, // hello
-						new double[] { 0.0, 0.6 }), // quack
+				Arrays.asList("moo", "hello", "quack"),
 				new TransitionProbability() {
 					@Override
 					public double transition(String fromState, String toState) {
@@ -45,6 +42,26 @@ public class ViterbiAlgorithm {
 					public double end(String state) {
 						return 0.2;
 					}
+
+					@Override
+					public double emit(String state, Object observation) {
+						String observedString = (String) observation;
+						if ("cow".equals(state) && "moo".equals(observedString)) {
+							return 0.9;
+						}
+						if ("cow".equals(state) && "hello".equals(observedString)) {
+							return 0.1;
+						}
+
+						if ("duck".equals(state) && "quack".equals(observedString)) {
+							return 0.6;
+						}
+						if ("duck".equals(state) && "hello".equals(observedString)) {
+							return 0.4;
+						}
+
+						return 0;
+					}
 				});
 
 		for (String s : path) {
@@ -57,7 +74,7 @@ public class ViterbiAlgorithm {
 	 * R - number of observed items <br/>
 	 * S - number of hidden states
 	 */
-	public Iterable<String> getMostProbablePath(String[] states, List<double[]> observed, TransitionProbability transitionProbability) {
+	public Iterable<String> getMostProbablePath(String[] states, List<Object> observed, TransitionProbability transitionProbability) {
 		int statesCount = states.length;
 		int observedCount = observed.size();
 
@@ -67,11 +84,11 @@ public class ViterbiAlgorithm {
 		// account probability, that any state - can be the starting state of
 		// the sequence of observations)
 		int firstObservedIndex = 0;
-		double[] firstObserved = observed.get(firstObservedIndex);
+		Object firstObserved = observed.get(firstObservedIndex);
 		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
-			double stateProbability = firstObserved[stateIndex];
 			String state = states[stateIndex];
 			double stateStartProbability = transitionProbability.start(state);
+			double stateProbability = transitionProbability.emit(state, firstObserved);
 
 			double logStartProbability = this.log(stateProbability) + this.log(stateStartProbability);
 			matrix[stateIndex][firstObservedIndex].setValue(logStartProbability);
@@ -81,7 +98,7 @@ public class ViterbiAlgorithm {
 		// and maximizing probability of the hidden states (in greedy way)
 		for (int observedIndex = firstObservedIndex + 1; observedIndex < observedCount; observedIndex++) {
 
-			double[] currentObserved = observed.get(observedIndex);
+			Object currentObserved = observed.get(observedIndex);
 
 			// For each hidden state (of current observed item)
 			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
@@ -109,7 +126,7 @@ public class ViterbiAlgorithm {
 				}
 
 				Cell current = matrix[currStateIndex][observedIndex];
-				double currentStateProbability = currentObserved[currStateIndex];
+				double currentStateProbability = transitionProbability.emit(currentState, currentObserved);
 				double currentLogProbability = bestParentLogProbability + this.log(currentStateProbability);
 
 				current.setParent(bestParent);
@@ -211,5 +228,7 @@ public class ViterbiAlgorithm {
 		double start(String state);
 
 		double end(String state);
+
+		double emit(String state, Object observation);
 	}
 }

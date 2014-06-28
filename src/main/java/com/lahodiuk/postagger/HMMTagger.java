@@ -19,7 +19,9 @@ public class HMMTagger {
 
 	private Map<Tag, Double> tagEnd = new HashMap<>();
 
-	public HMMTagger(List<TaggedSentence> taggedSentences) {
+	private POSTagger classiferBasedTagger;
+
+	public HMMTagger(List<TaggedSentence> taggedSentences) throws Exception {
 		for (Tag prevTag : TAGS) {
 			this.tag2tagCount.put(prevTag, new HashMap<>());
 			for (Tag currTag : TAGS) {
@@ -67,6 +69,9 @@ public class HMMTagger {
 		System.out.println(this.tagStart);
 		System.out.println(this.tagEnd);
 		System.out.println(this.tag2tagCount);
+
+		this.classiferBasedTagger = new POSTagger();
+		this.classiferBasedTagger.train(taggedSentences);
 	}
 
 	private void normalize(Map<Tag, Double> map) {
@@ -80,21 +85,18 @@ public class HMMTagger {
 		}
 	}
 
-	public void inference(List<ClassifiedToken> classifiedTokens) {
+	public void inference(Sentence sentence) throws Exception {
 		String[] states = new String[TAGS.length];
 		int i = 0;
 		for (Tag tag : TAGS) {
 			states[i++] = tag.name();
 		}
 
-		List<double[]> items = new ArrayList<>();
+		List<ClassifiedToken> classifiedTokens = this.classiferBasedTagger.doTagging(sentence);
+
+		List<Object> items = new ArrayList<>();
 		for (ClassifiedToken ct : classifiedTokens) {
-			double[] item = new double[TAGS.length];
-			int j = 0;
-			for (Tag tag : TAGS) {
-				item[j++] = ct.getProbability(tag);
-			}
-			items.add(item);
+			items.add(ct);
 		}
 
 		Iterable<String> tags = new ViterbiAlgorithm().getMostProbablePath(states, items, this.getTransitionProbability());
@@ -104,7 +106,7 @@ public class HMMTagger {
 		}
 	}
 
-	public TransitionProbability getTransitionProbability() {
+	private TransitionProbability getTransitionProbability() {
 		return new TransitionProbability() {
 
 			@Override
@@ -122,6 +124,12 @@ public class HMMTagger {
 			public double end(String state) {
 				return HMMTagger.this.tagEnd.get(Tag.valueOf(state));
 				// return 1;
+			}
+
+			@Override
+			public double emit(String state, Object observation) {
+				ClassifiedToken ct = (ClassifiedToken) observation;
+				return ct.getProbability(Tag.valueOf(state));
 			}
 		};
 	}
