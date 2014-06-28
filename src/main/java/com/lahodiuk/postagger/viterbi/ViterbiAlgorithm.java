@@ -9,26 +9,41 @@ public class ViterbiAlgorithm {
 
 	public static void main(String[] args) {
 		Iterable<String> path = new ViterbiAlgorithm().getMostProbablePath(
-				new String[] { "1", "0" },
+				new String[] { "cow", "duck" },
 				Arrays.asList(
-						new double[] { 0.6, 0.5 },
-						new double[] { 0.6, 0.81 },
-						new double[] { 0.4, 0.5 },
-						new double[] { 0.7, 0.5 }),
+						new double[] { 0.9, 0.0 }, // moo
+						new double[] { 0.1, 0.4 }, // hello
+						new double[] { 0.0, 0.6 }), // quack
 				new TransitionProbability() {
 					@Override
 					public double transition(String fromState, String toState) {
-						return fromState.equals(toState) ? 0.8 : 0.2;
+						if ("cow".equals(fromState) && "cow".equals(toState)) {
+							return 0.5;
+						}
+						if ("cow".equals(fromState) && "duck".equals(toState)) {
+							return 0.3;
+						}
+						if ("duck".equals(fromState) && "duck".equals(toState)) {
+							return 0.5;
+						}
+						if ("duck".equals(fromState) && "cow".equals(toState)) {
+							return 0.3;
+						}
+						throw new RuntimeException();
 					}
 
 					@Override
 					public double start(String state) {
-						return 1;
+						if ("cow".equals(state)) {
+							return 1;
+						} else {
+							return 0;
+						}
 					}
 
 					@Override
 					public double end(String state) {
-						return 1;
+						return 0.2;
 					}
 				});
 
@@ -135,6 +150,7 @@ public class ViterbiAlgorithm {
 		List<String> path = new ArrayList<>();
 
 		while (lastCell != null) {
+			System.out.println(Math.exp(lastCell.getValue()));
 			path.add(lastCell.getState());
 			lastCell = lastCell.getParent();
 		}
