@@ -29,7 +29,7 @@ public class XMLCorpusReader {
 		}
 	}
 
-	public static List<TaggedSentence> getTaggedSentences(String xmlCorpusPath, int minNumberOfTags) throws XMLStreamException, FactoryConfigurationError,
+	public static List<TaggedSentence> getTaggedSentences(String xmlCorpusPath, int minNumberOfTokens) throws XMLStreamException, FactoryConfigurationError,
 			FileNotFoundException {
 		List<TaggedSentence> taggedSentences = new ArrayList<>();
 
@@ -43,7 +43,7 @@ public class XMLCorpusReader {
 
 				List<StringTaggedToken> taggedTokens = extractTaggedTokens(xmlEventReader);
 
-				if (!allTagsRecognized(taggedTokens) || (taggedTokens.size() < minNumberOfTags)) {
+				if (!allTagsRecognized(taggedTokens) || (taggedTokens.size() < minNumberOfTokens)) {
 					continue;
 				}
 
