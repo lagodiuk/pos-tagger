@@ -27,7 +27,7 @@ public class POSTagger {
 	public static void main(String[] args) throws Exception {
 		// Corpus downloaded from: http://opencorpora.org/?page=downloads
 		// (version without disambiguation)
-		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences("/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 1);
+		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences("/home/yurii/sandbox/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 1);
 
 		HMMTagger hmmTagger = new HMMTagger(taggedSentences);
 
@@ -47,6 +47,8 @@ public class POSTagger {
 	public static final int WINDOW_NEIGHBOURS_NUMBER = 1;
 
 	public static final String MARGIN = "";
+	
+	private static final int GRAPHEME_MAX_LENGTH = 4;
 
 	private Classifier classifier;
 
@@ -244,9 +246,19 @@ public class POSTagger {
 						String currentToken = window.getCurrentToken();
 						int currentTokenLength = currentToken.length();
 
+						if(currentToken.matches(".*\\d+.*")) {
+							instance.setValue(this.getAttribute(), "number");
+							return;
+						}
+						
+						if(currentTokenLength <= GRAPHEME_MAX_LENGTH) {
+							instance.setValue(this.getAttribute(), "^" + currentToken + "$");
+							return;
+						}
+						
 						StringBuilder graphemes = new StringBuilder();
 
-						for (int i = 1; i <= 4; i++) {
+						for (int i = 1; i <= GRAPHEME_MAX_LENGTH; i++) {
 							if (currentTokenLength > (i - 1)) {
 								String sufix = currentToken.substring(currentTokenLength - i, currentTokenLength).toLowerCase();
 								graphemes.append(sufix).append("$").append(" ");
@@ -269,9 +281,19 @@ public class POSTagger {
 						String previousToken = previousTokens.get(previousTokens.size() - 1);
 						int previousTokenLength = previousToken.length();
 
+						if(previousToken.matches(".*\\d+.*")) {
+							instance.setValue(this.getAttribute(), "number");
+							return;
+						}
+						
+						if(previousTokenLength <= GRAPHEME_MAX_LENGTH) {
+							instance.setValue(this.getAttribute(), "^" + previousToken + "$");
+							return;
+						}
+						
 						StringBuilder graphemes = new StringBuilder();
 
-						for (int i = 1; i <= 4; i++) {
+						for (int i = 1; i <= GRAPHEME_MAX_LENGTH; i++) {
 							if (previousTokenLength > (i - 1)) {
 								String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase();
 								graphemes.append(sufix).append("$").append(" ");
@@ -293,9 +315,19 @@ public class POSTagger {
 						String followingToken = window.getFollowingTokens().get(0);
 						int followingTokenLength = followingToken.length();
 
+						if(followingToken.matches(".*\\d+.*")) {
+							instance.setValue(this.getAttribute(), "number");
+							return;
+						}
+						
+						if(followingTokenLength <= GRAPHEME_MAX_LENGTH) {
+							instance.setValue(this.getAttribute(), "^" + followingToken + "$");
+							return;
+						}
+						
 						StringBuilder graphemes = new StringBuilder();
 
-						for (int i = 1; i <= 4; i++) {
+						for (int i = 1; i <= GRAPHEME_MAX_LENGTH; i++) {
 							if (followingTokenLength > (i - 1)) {
 								String sufix = followingToken.substring(followingTokenLength - i, followingTokenLength).toLowerCase();
 								graphemes.append(sufix).append("$").append(" ");
