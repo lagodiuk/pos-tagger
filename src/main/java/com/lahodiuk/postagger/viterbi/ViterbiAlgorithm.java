@@ -62,6 +62,12 @@ public class ViterbiAlgorithm {
 
 						return 0;
 					}
+
+					@Override
+					public void setCurrentObservation(Object observation) {
+						// TODO Auto-generated method stub
+
+					}
 				});
 
 		for (String s : path) {
@@ -85,6 +91,7 @@ public class ViterbiAlgorithm {
 		// the sequence of observations)
 		int firstObservedIndex = 0;
 		Object firstObserved = observed.get(firstObservedIndex);
+		transitionProbability.setCurrentObservation(firstObserved);
 		for (int stateIndex = 0; stateIndex < statesCount; stateIndex++) {
 			String state = states[stateIndex];
 			double stateStartProbability = transitionProbability.start(state);
@@ -99,6 +106,7 @@ public class ViterbiAlgorithm {
 		for (int observedIndex = firstObservedIndex + 1; observedIndex < observedCount; observedIndex++) {
 
 			Object currentObserved = observed.get(observedIndex);
+			transitionProbability.setCurrentObservation(currentObserved);
 
 			// For each hidden state (of current observed item)
 			for (int currStateIndex = 0; currStateIndex < statesCount; currStateIndex++) {
@@ -223,6 +231,8 @@ public class ViterbiAlgorithm {
 	}
 
 	public static interface TransitionProbability {
+		void setCurrentObservation(Object observation);
+
 		double transition(String fromState, String toState);
 
 		double start(String state);

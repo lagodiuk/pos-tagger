@@ -49,6 +49,7 @@ public class TaggedSentence {
 		for (int j = 0; j < neighboursCount; j++) {
 			previousTokens.add(margin);
 		}
+		Queue<Tag> previousTags = new ArrayDeque<>();
 
 		while (!followingTaggedTokens.isEmpty()) {
 			TaggedToken currentToken = followingTaggedTokens.poll();
@@ -58,6 +59,7 @@ public class TaggedSentence {
 			ww.setCurrentToken(currentToken.getToken());
 			ww.setPreviousTokens(previousTokens);
 			ww.setFollowingTokens(followingTokens);
+			ww.setPreviousTags(previousTags);
 			TaggedWordWindow tww = new TaggedWordWindow();
 			tww.setTag(currentToken.getTag());
 			tww.setWordWindow(ww);
@@ -66,6 +68,11 @@ public class TaggedSentence {
 			previousTokens.add(currentToken.getToken());
 			if (previousTokens.size() > neighboursCount) {
 				previousTokens.poll();
+			}
+
+			previousTags.add(currentToken.getTag());
+			if (previousTags.size() > neighboursCount) {
+				previousTags.poll();
 			}
 
 			if (followingIterator.hasNext()) {

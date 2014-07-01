@@ -44,9 +44,9 @@ public class POSTagger {
 
 	private static final Attribute TAG_ATTRIBUTE = getTagAttribute();
 
-	private static final int WINDOW_NEIGHBOURS_NUMBER = 1;
+	public static final int WINDOW_NEIGHBOURS_NUMBER = 1;
 
-	private static final String MARGIN = "";
+	public static final String MARGIN = "";
 
 	private Classifier classifier;
 
@@ -79,25 +79,9 @@ public class POSTagger {
 		System.out.println();
 
 		List<WordWindow> wordWindows = sentence.getWordWindows(WINDOW_NEIGHBOURS_NUMBER, MARGIN);
-		Instances sentenceInstances = this.getEmptyInstances("sentenceInstances");
+
 		for (WordWindow ww : wordWindows) {
-			Instance inst = this.wordWindowToInstance(ww);
-			inst.setDataset(sentenceInstances);
-			double[] distr = this.classifier.distributionForInstance(inst);
-			int tagIndex = 0;
-
-			System.out.println(ww.getCurrentToken());
-
-			ClassifiedToken classifiedToken = new ClassifiedToken(ww.getCurrentToken());
-
-			for (Tag tag : Tag.values()) {
-				double probability = distr[tagIndex++];
-				classifiedToken.setProbability(tag, probability);
-				if (probability < 0.1) {
-					continue;
-				}
-				System.out.println(tag.name() + "\t" + tag.getRussianName() + "\t" + probability);
-			}
+			ClassifiedToken classifiedToken = this.classifyWordWindow(ww);
 
 			result.add(classifiedToken);
 
@@ -105,6 +89,28 @@ public class POSTagger {
 		}
 
 		return result;
+	}
+
+	public ClassifiedToken classifyWordWindow(WordWindow ww) throws Exception {
+		Instances sentenceInstances = this.getEmptyInstances("sentenceInstances");
+		Instance inst = this.wordWindowToInstance(ww);
+		inst.setDataset(sentenceInstances);
+		double[] distr = this.classifier.distributionForInstance(inst);
+		int tagIndex = 0;
+
+		System.out.println(ww.getCurrentToken());
+
+		ClassifiedToken classifiedToken = new ClassifiedToken(ww.getCurrentToken());
+
+		for (Tag tag : Tag.values()) {
+			double probability = distr[tagIndex++];
+			classifiedToken.setProbability(tag, probability);
+			if (probability < 0.1) {
+				continue;
+			}
+			System.out.println(tag.name() + "\t" + tag.getRussianName() + "\t" + probability);
+		}
+		return classifiedToken;
 	}
 
 	private Classifier buildClassifier(Instances trainingInstancesSet) throws Exception {
@@ -146,26 +152,32 @@ public class POSTagger {
 
 	private MultiFilter initializeFiltersForGraphemes(Instances trainingInstancesSet) throws Exception {
 		StringToWordVector currentFilter = new StringToWordVector();
-		currentFilter.setAttributeIndices("first");
+		currentFilter.setAttributeIndices("1");
 		currentFilter.setAttributeNamePrefix("current_");
 		currentFilter.setOutputWordCounts(false);
 		currentFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector previousFilter = new StringToWordVector();
-		previousFilter.setAttributeIndices("first-1");
+		previousFilter.setAttributeIndices("1");
 		previousFilter.setAttributeNamePrefix("previous_");
 		previousFilter.setOutputWordCounts(false);
 		previousFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector followingFilter = new StringToWordVector();
-		followingFilter.setAttributeIndices("first-2");
+		followingFilter.setAttributeIndices("1");
 		followingFilter.setAttributeNamePrefix("following_");
 		followingFilter.setOutputWordCounts(false);
 		followingFilter.setTokenizer(new SpaceTokenizer());
 
+		StringToWordVector previousTagsFilter = new StringToWordVector();
+		previousTagsFilter.setAttributeIndices("1");
+		previousTagsFilter.setAttributeNamePrefix("p_tags_");
+		previousTagsFilter.setOutputWordCounts(false);
+		previousTagsFilter.setTokenizer(new SpaceTokenizer());
+
 		MultiFilter multiFilter = new MultiFilter();
 		multiFilter.setInputFormat(trainingInstancesSet);
-		multiFilter.setFilters(new Filter[] { currentFilter, previousFilter, followingFilter });
+		multiFilter.setFilters(new Filter[] { currentFilter, previousFilter, followingFilter, previousTagsFilter });
 		return multiFilter;
 	}
 
@@ -173,7 +185,8 @@ public class POSTagger {
 		Instances trainingInstancesSet = this.getEmptyInstances(instancesSetName);
 		for (TaggedSentence ts : trainingSet) {
 			for (TaggedWordWindow tww : ts.getTaggedWordWindows(WINDOW_NEIGHBOURS_NUMBER, MARGIN)) {
-				Instance i = this.wordWindowToInstance(tww.getWordWindow());
+				WordWindow wordWindow = tww.getWordWindow();
+				Instance i = this.wordWindowToInstance(wordWindow);
 				i.setValue(TAG_ATTRIBUTE, tww.getTag().name());
 				trainingInstancesSet.add(i);
 				i.setDataset(trainingInstancesSet);
@@ -224,127 +237,138 @@ public class POSTagger {
 	}
 
 	private static Feature[] getFeatures() {
-		return new Feature[] { new Feature("currentTokenGraphemes", FeatureType.STRING) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				String currentToken = window.getCurrentToken();
-				int currentTokenLength = currentToken.length();
+		return new Feature[] {
+				new Feature("currentTokenGraphemes", FeatureType.STRING) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						String currentToken = window.getCurrentToken();
+						int currentTokenLength = currentToken.length();
 
-				StringBuilder graphemes = new StringBuilder();
+						StringBuilder graphemes = new StringBuilder();
 
-				for (int i = 1; i <= 4; i++) {
-					if (currentTokenLength > (i - 1)) {
-						String sufix = currentToken.substring(currentTokenLength - i, currentTokenLength).toLowerCase();
-						graphemes.append(sufix).append("$").append(" ");
+						for (int i = 1; i <= 4; i++) {
+							if (currentTokenLength > (i - 1)) {
+								String sufix = currentToken.substring(currentTokenLength - i, currentTokenLength).toLowerCase();
+								graphemes.append(sufix).append("$").append(" ");
 
-						String prefix = currentToken.substring(0, i).toLowerCase();
-						graphemes.append("^").append(prefix).append(" ");
+								String prefix = currentToken.substring(0, i).toLowerCase();
+								graphemes.append("^").append(prefix).append(" ");
+							}
+						}
+
+						if (graphemes.length() > 0) {
+							graphemes.setLength(graphemes.length() - 1);
+						}
+
+						instance.setValue(this.getAttribute(), graphemes.toString());
 					}
-				}
+				}, new Feature("previousTokenGraphemes", FeatureType.STRING) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						List<String> previousTokens = window.getPreviousTokens();
+						String previousToken = previousTokens.get(previousTokens.size() - 1);
+						int previousTokenLength = previousToken.length();
 
-				if (graphemes.length() > 0) {
-					graphemes.setLength(graphemes.length() - 1);
-				}
+						StringBuilder graphemes = new StringBuilder();
 
-				instance.setValue(this.getAttribute(), graphemes.toString());
-			}
-		}, new Feature("previousTokenGraphemes", FeatureType.STRING) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				List<String> previousTokens = window.getPreviousTokens();
-				String previousToken = previousTokens.get(previousTokens.size() - 1);
-				int previousTokenLength = previousToken.length();
+						for (int i = 1; i <= 4; i++) {
+							if (previousTokenLength > (i - 1)) {
+								String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase();
+								graphemes.append(sufix).append("$").append(" ");
 
-				StringBuilder graphemes = new StringBuilder();
+								String prefix = previousToken.substring(0, i).toLowerCase();
+								graphemes.append("^").append(prefix).append(" ");
+							}
+						}
 
-				for (int i = 1; i <= 4; i++) {
-					if (previousTokenLength > (i - 1)) {
-						String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase();
-						graphemes.append(sufix).append("$").append(" ");
+						if (graphemes.length() > 0) {
+							graphemes.setLength(graphemes.length() - 1);
+						}
 
-						String prefix = previousToken.substring(0, i).toLowerCase();
-						graphemes.append("^").append(prefix).append(" ");
+						instance.setValue(this.getAttribute(), graphemes.toString());
 					}
-				}
+				}, new Feature("followingTokenGraphemes", FeatureType.STRING) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						String followingToken = window.getFollowingTokens().get(0);
+						int followingTokenLength = followingToken.length();
 
-				if (graphemes.length() > 0) {
-					graphemes.setLength(graphemes.length() - 1);
-				}
+						StringBuilder graphemes = new StringBuilder();
 
-				instance.setValue(this.getAttribute(), graphemes.toString());
-			}
-		}, new Feature("followingTokenGraphemes", FeatureType.STRING) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				String followingToken = window.getFollowingTokens().get(0);
-				int followingTokenLength = followingToken.length();
+						for (int i = 1; i <= 4; i++) {
+							if (followingTokenLength > (i - 1)) {
+								String sufix = followingToken.substring(followingTokenLength - i, followingTokenLength).toLowerCase();
+								graphemes.append(sufix).append("$").append(" ");
 
-				StringBuilder graphemes = new StringBuilder();
+								String prefix = followingToken.substring(0, i).toLowerCase();
+								graphemes.append("^").append(prefix).append(" ");
+							}
+						}
 
-				for (int i = 1; i <= 4; i++) {
-					if (followingTokenLength > (i - 1)) {
-						String sufix = followingToken.substring(followingTokenLength - i, followingTokenLength).toLowerCase();
-						graphemes.append(sufix).append("$").append(" ");
+						if (graphemes.length() > 0) {
+							graphemes.setLength(graphemes.length() - 1);
+						}
 
-						String prefix = followingToken.substring(0, i).toLowerCase();
-						graphemes.append("^").append(prefix).append(" ");
+						instance.setValue(this.getAttribute(), graphemes.toString());
 					}
-				}
-
-				if (graphemes.length() > 0) {
-					graphemes.setLength(graphemes.length() - 1);
-				}
-
-				instance.setValue(this.getAttribute(), graphemes.toString());
-			}
-		}, new Feature("currentTokenLength", FeatureType.NUMERIC) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				instance.setValue(this.getAttribute(), window.getCurrentToken().length());
-			}
-		}, new Feature("previousTokenLength", FeatureType.NUMERIC) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				List<String> previousTokens = window.getPreviousTokens();
-				String previousToken = previousTokens.get(previousTokens.size() - 1);
-				instance.setValue(this.getAttribute(), previousToken.length());
-			}
-		}, new Feature("followingTokenLength", FeatureType.NUMERIC) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				instance.setValue(this.getAttribute(), window.getFollowingTokens().get(0).length());
-			}
-		}, new Feature("currentTokenStartsUppercase", FeatureType.NUMERIC) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				String currentToken = window.getCurrentToken();
-				if ((currentToken.length() > 0) && Character.isUpperCase(currentToken.charAt(0))) {
-					instance.setValue(this.getAttribute(), 1);
-				} else {
-					instance.setValue(this.getAttribute(), 0);
-				}
-			}
-		}, new Feature("currentTokenContainsOnlyLetters", FeatureType.NUMERIC) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				String currentToken = window.getCurrentToken();
-				if (currentToken.matches("\\p{L}+")) {
-					instance.setValue(this.getAttribute(), 1);
-				} else {
-					instance.setValue(this.getAttribute(), 0);
-				}
-			}
-		}, new Feature("currentTokenContainsDigits", FeatureType.NUMERIC) {
-			@Override
-			public void addFeature(WordWindow window, Instance instance) {
-				String currentToken = window.getCurrentToken();
-				if (currentToken.matches(".*\\d+.*")) {
-					instance.setValue(this.getAttribute(), 1);
-				} else {
-					instance.setValue(this.getAttribute(), 0);
-				}
-			}
-		}, };
+				}, new Feature("previousTags", FeatureType.STRING) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						List<Tag> previousTags = window.getPreviousTags();
+						String previousTag = "";
+						if (previousTags.size() > 0) {
+							previousTag = previousTags.get(previousTags.size() - 1).name();
+						}
+						instance.setValue(this.getAttribute(), previousTag);
+					}
+				}, new Feature("currentTokenLength", FeatureType.NUMERIC) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						instance.setValue(this.getAttribute(), window.getCurrentToken().length());
+					}
+				}, new Feature("previousTokenLength", FeatureType.NUMERIC) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						List<String> previousTokens = window.getPreviousTokens();
+						String previousToken = previousTokens.get(previousTokens.size() - 1);
+						instance.setValue(this.getAttribute(), previousToken.length());
+					}
+				}, new Feature("followingTokenLength", FeatureType.NUMERIC) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						instance.setValue(this.getAttribute(), window.getFollowingTokens().get(0).length());
+					}
+				}, new Feature("currentTokenStartsUppercase", FeatureType.NUMERIC) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						String currentToken = window.getCurrentToken();
+						if ((currentToken.length() > 0) && Character.isUpperCase(currentToken.charAt(0))) {
+							instance.setValue(this.getAttribute(), 1);
+						} else {
+							instance.setValue(this.getAttribute(), 0);
+						}
+					}
+				}, new Feature("currentTokenContainsOnlyLetters", FeatureType.NUMERIC) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						String currentToken = window.getCurrentToken();
+						if (currentToken.matches("\\p{L}+")) {
+							instance.setValue(this.getAttribute(), 1);
+						} else {
+							instance.setValue(this.getAttribute(), 0);
+						}
+					}
+				}, new Feature("currentTokenContainsDigits", FeatureType.NUMERIC) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						String currentToken = window.getCurrentToken();
+						if (currentToken.matches(".*\\d+.*")) {
+							instance.setValue(this.getAttribute(), 1);
+						} else {
+							instance.setValue(this.getAttribute(), 0);
+						}
+					}
+				}, };
 	}
 
 	private static final class SpaceTokenizer extends Tokenizer {

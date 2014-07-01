@@ -8,6 +8,8 @@ public class WordWindow {
 
 	private String currentToken;
 
+	private List<Tag> previousTags = new ArrayList<>();
+
 	private List<String> previousTokens = new ArrayList<>();
 
 	private List<String> followingTokens = new ArrayList<>();
@@ -36,8 +38,18 @@ public class WordWindow {
 		this.previousTokens.addAll(previousTokens);
 	}
 
+	public List<Tag> getPreviousTags() {
+		return this.previousTags;
+	}
+
+	public void setPreviousTags(Collection<Tag> previousTags) {
+		this.previousTags.addAll(previousTags);
+	}
+
 	@Override
 	public String toString() {
-		return "[previousTokens=" + this.previousTokens + ", currentToken=" + this.currentToken + ", followingTokens=" + this.followingTokens + "]";
+		return "WordWindow [currentToken=" + this.currentToken + ", previousTags=" + this.previousTags + ", previousTokens=" + this.previousTokens + ", followingTokens="
+				+ this.followingTokens + "]";
 	}
+
 }
