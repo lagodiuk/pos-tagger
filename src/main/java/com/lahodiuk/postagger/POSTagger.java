@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 
 import weka.classifiers.Classifier;
@@ -24,16 +25,27 @@ import com.lahodiuk.postagger.Feature.FeatureType;
 
 public class POSTagger {
 
+	private static final int MIN_NUMBER_OF_TOKENS = 3;
+
 	public static void main(String[] args) throws Exception {
 		// Corpus downloaded from: http://opencorpora.org/?page=downloads
 		// (version without disambiguation)
-		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences("/home/yurii/sandbox/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml", 1);
+		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences(
+				"/home/yurii/sandbox/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml",
+				MIN_NUMBER_OF_TOKENS);
 
 		HMMTagger hmmTagger = new HMMTagger(taggedSentences);
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
-			hmmTagger.inference(new Sentence(br.readLine()));
+			String string = br.readLine();
+			if (string.isEmpty()) {
+				continue;
+			}
+			if ("finish".equals(string)) {
+				break;
+			}
+			hmmTagger.inference(new Sentence(string));
 			System.out.println();
 		}
 	}
@@ -44,11 +56,15 @@ public class POSTagger {
 
 	private static final Attribute TAG_ATTRIBUTE = getTagAttribute();
 
-	public static final int WINDOW_NEIGHBOURS_NUMBER = 1;
+	public static final int WINDOW_NEIGHBOURS_NUMBER = 2;
 
 	public static final String MARGIN = "";
-	
-	private static final int GRAPHEME_MAX_LENGTH = 4;
+
+	private static final int GRAPHEME_MAX_LENGTH = 3;
+
+	private static final int GRAPHEME_MIN_LENGTH = 2;
+
+	private static final Locale LOCALE = Locale.forLanguageTag("RU");
 
 	private Classifier classifier;
 
@@ -100,7 +116,7 @@ public class POSTagger {
 		double[] distr = this.classifier.distributionForInstance(inst);
 		int tagIndex = 0;
 
-		System.out.println(ww.getCurrentToken());
+		// System.out.println(ww.getCurrentToken());
 
 		ClassifiedToken classifiedToken = new ClassifiedToken(ww.getCurrentToken());
 
@@ -110,7 +126,8 @@ public class POSTagger {
 			if (probability < 0.1) {
 				continue;
 			}
-			System.out.println(tag.name() + "\t" + tag.getRussianName() + "\t" + probability);
+			// System.out.println(tag.name() + "\t" + tag.getRussianName() +
+			// "\t" + probability);
 		}
 		return classifiedToken;
 	}
@@ -173,13 +190,19 @@ public class POSTagger {
 
 		StringToWordVector previousTagsFilter = new StringToWordVector();
 		previousTagsFilter.setAttributeIndices("1");
-		previousTagsFilter.setAttributeNamePrefix("p_tags_");
+		previousTagsFilter.setAttributeNamePrefix("prev_tag_");
 		previousTagsFilter.setOutputWordCounts(false);
 		previousTagsFilter.setTokenizer(new SpaceTokenizer());
 
+		StringToWordVector previousPreviousTagsFilter = new StringToWordVector();
+		previousPreviousTagsFilter.setAttributeIndices("1");
+		previousPreviousTagsFilter.setAttributeNamePrefix("prev_prev_");
+		previousPreviousTagsFilter.setOutputWordCounts(false);
+		previousPreviousTagsFilter.setTokenizer(new SpaceTokenizer());
+
 		MultiFilter multiFilter = new MultiFilter();
 		multiFilter.setInputFormat(trainingInstancesSet);
-		multiFilter.setFilters(new Filter[] { currentFilter, previousFilter, followingFilter, previousTagsFilter });
+		multiFilter.setFilters(new Filter[] { currentFilter, previousFilter, followingFilter, previousTagsFilter, previousPreviousTagsFilter });
 		return multiFilter;
 	}
 
@@ -246,24 +269,24 @@ public class POSTagger {
 						String currentToken = window.getCurrentToken();
 						int currentTokenLength = currentToken.length();
 
-						if(currentToken.matches(".*\\d+.*")) {
-							instance.setValue(this.getAttribute(), "number");
+						if (!currentToken.matches("\\p{L}+")) {
+							instance.setValue(this.getAttribute(), "other");
 							return;
 						}
-						
-						if(currentTokenLength <= GRAPHEME_MAX_LENGTH) {
+
+						if (currentTokenLength <= GRAPHEME_MAX_LENGTH) {
 							instance.setValue(this.getAttribute(), "^" + currentToken + "$");
 							return;
 						}
-						
+
 						StringBuilder graphemes = new StringBuilder();
 
-						for (int i = 1; i <= GRAPHEME_MAX_LENGTH; i++) {
+						for (int i = GRAPHEME_MIN_LENGTH; i <= GRAPHEME_MAX_LENGTH; i++) {
 							if (currentTokenLength > (i - 1)) {
-								String sufix = currentToken.substring(currentTokenLength - i, currentTokenLength).toLowerCase();
+								String sufix = currentToken.substring(currentTokenLength - i, currentTokenLength).toLowerCase(LOCALE);
 								graphemes.append(sufix).append("$").append(" ");
 
-								String prefix = currentToken.substring(0, i).toLowerCase();
+								String prefix = currentToken.substring(0, i).toLowerCase(LOCALE);
 								graphemes.append("^").append(prefix).append(" ");
 							}
 						}
@@ -281,24 +304,24 @@ public class POSTagger {
 						String previousToken = previousTokens.get(previousTokens.size() - 1);
 						int previousTokenLength = previousToken.length();
 
-						if(previousToken.matches(".*\\d+.*")) {
-							instance.setValue(this.getAttribute(), "number");
+						if (!previousToken.matches("\\p{L}+")) {
+							instance.setValue(this.getAttribute(), "other");
 							return;
 						}
-						
-						if(previousTokenLength <= GRAPHEME_MAX_LENGTH) {
+
+						if (previousTokenLength <= GRAPHEME_MAX_LENGTH) {
 							instance.setValue(this.getAttribute(), "^" + previousToken + "$");
 							return;
 						}
-						
+
 						StringBuilder graphemes = new StringBuilder();
 
-						for (int i = 1; i <= GRAPHEME_MAX_LENGTH; i++) {
+						for (int i = GRAPHEME_MIN_LENGTH; i <= GRAPHEME_MAX_LENGTH; i++) {
 							if (previousTokenLength > (i - 1)) {
-								String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase();
+								String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase(LOCALE);
 								graphemes.append(sufix).append("$").append(" ");
 
-								String prefix = previousToken.substring(0, i).toLowerCase();
+								String prefix = previousToken.substring(0, i).toLowerCase(LOCALE);
 								graphemes.append("^").append(prefix).append(" ");
 							}
 						}
@@ -315,24 +338,24 @@ public class POSTagger {
 						String followingToken = window.getFollowingTokens().get(0);
 						int followingTokenLength = followingToken.length();
 
-						if(followingToken.matches(".*\\d+.*")) {
-							instance.setValue(this.getAttribute(), "number");
+						if (!followingToken.matches("\\p{L}+")) {
+							instance.setValue(this.getAttribute(), "other");
 							return;
 						}
-						
-						if(followingTokenLength <= GRAPHEME_MAX_LENGTH) {
+
+						if (followingTokenLength <= GRAPHEME_MAX_LENGTH) {
 							instance.setValue(this.getAttribute(), "^" + followingToken + "$");
 							return;
 						}
-						
+
 						StringBuilder graphemes = new StringBuilder();
 
-						for (int i = 1; i <= GRAPHEME_MAX_LENGTH; i++) {
+						for (int i = GRAPHEME_MIN_LENGTH; i <= GRAPHEME_MAX_LENGTH; i++) {
 							if (followingTokenLength > (i - 1)) {
-								String sufix = followingToken.substring(followingTokenLength - i, followingTokenLength).toLowerCase();
+								String sufix = followingToken.substring(followingTokenLength - i, followingTokenLength).toLowerCase(LOCALE);
 								graphemes.append(sufix).append("$").append(" ");
 
-								String prefix = followingToken.substring(0, i).toLowerCase();
+								String prefix = followingToken.substring(0, i).toLowerCase(LOCALE);
 								graphemes.append("^").append(prefix).append(" ");
 							}
 						}
@@ -352,6 +375,41 @@ public class POSTagger {
 							previousTag = previousTags.get(previousTags.size() - 1).name();
 						}
 						instance.setValue(this.getAttribute(), previousTag);
+					}
+				}, new Feature("previousPreviousTokenGraphemes", FeatureType.STRING) {
+					@Override
+					public void addFeature(WordWindow window, Instance instance) {
+						List<String> previousTokens = window.getPreviousTokens();
+						String previousToken = previousTokens.get(previousTokens.size() - 2);
+						int previousTokenLength = previousToken.length();
+
+						if (!previousToken.matches("\\p{L}+")) {
+							instance.setValue(this.getAttribute(), "other");
+							return;
+						}
+
+						if (previousTokenLength <= GRAPHEME_MAX_LENGTH) {
+							instance.setValue(this.getAttribute(), "^" + previousToken + "$");
+							return;
+						}
+
+						StringBuilder graphemes = new StringBuilder();
+
+						for (int i = GRAPHEME_MIN_LENGTH; i <= GRAPHEME_MAX_LENGTH; i++) {
+							if (previousTokenLength > (i - 1)) {
+								String sufix = previousToken.substring(previousTokenLength - i, previousTokenLength).toLowerCase(LOCALE);
+								graphemes.append(sufix).append("$").append(" ");
+
+								String prefix = previousToken.substring(0, i).toLowerCase(LOCALE);
+								graphemes.append("^").append(prefix).append(" ");
+							}
+						}
+
+						if (graphemes.length() > 0) {
+							graphemes.setLength(graphemes.length() - 1);
+						}
+
+						instance.setValue(this.getAttribute(), graphemes.toString());
 					}
 				}, new Feature("currentTokenLength", FeatureType.NUMERIC) {
 					@Override
