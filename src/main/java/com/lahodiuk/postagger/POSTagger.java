@@ -31,7 +31,7 @@ public class POSTagger {
 		// Corpus downloaded from: http://opencorpora.org/?page=downloads
 		// (version without disambiguation)
 		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences(
-				"/home/yurii/sandbox/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml",
+				"/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml",
 				MIN_NUMBER_OF_TOKENS);
 
 		HMMTagger hmmTagger = new HMMTagger(taggedSentences);
