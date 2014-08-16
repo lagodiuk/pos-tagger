@@ -1,6 +1,7 @@
 package com.lahodiuk.postagger;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,6 +17,7 @@ import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.converters.ArffSaver;
 import weka.core.tokenizers.Tokenizer;
 import weka.filters.Filter;
 import weka.filters.MultiFilter;
@@ -62,13 +64,15 @@ public class POSTagger {
 
 	private static final int GRAPHEME_MAX_LENGTH = 3;
 
-	private static final int GRAPHEME_MIN_LENGTH = 2;
+	private static final int GRAPHEME_MIN_LENGTH = 1;
 
 	private static final Locale LOCALE = Locale.forLanguageTag("RU");
 
 	private Classifier classifier;
 
 	public void train(List<TaggedSentence> taggedSentences) throws Exception {
+
+		this.saveTrainingSetToArffFile(taggedSentences);
 
 		Collections.shuffle(taggedSentences, new Random(1));
 		int toIndex = (taggedSentences.size() * 8) / 10;
@@ -88,6 +92,16 @@ public class POSTagger {
 		eval.evaluateModel(this.classifier, validationInstancesSet);
 		System.out.println(eval.toSummaryString());
 		System.out.println(eval.toMatrixString());
+	}
+
+	private void saveTrainingSetToArffFile(List<TaggedSentence> trainingSet) throws Exception {
+		Instances trainingInstancesSet = this.createInstancesSet(trainingSet, "trainingSet");
+		MultiFilter graphemesFilter = this.initializeFiltersForGraphemes(trainingInstancesSet);
+		trainingInstancesSet = Filter.useFilter(trainingInstancesSet, graphemesFilter);
+		ArffSaver arffSaver = new ArffSaver();
+		arffSaver.setFile(new File("target/training_set.arff"));
+		arffSaver.setInstances(trainingInstancesSet);
+		arffSaver.writeBatch();
 	}
 
 	public List<ClassifiedToken> doTagging(Sentence sentence) throws Exception {
@@ -133,70 +147,64 @@ public class POSTagger {
 	}
 
 	private Classifier buildClassifier(Instances trainingInstancesSet) throws Exception {
-		MultiFilter graphemesFilter = this.initializeFiltersForGraphemes(trainingInstancesSet);
-
-		FilteredClassifier filteredClassifier = new FilteredClassifier();
-		filteredClassifier.setFilter(graphemesFilter);
-
 		// SVM
-		//
 		SMO svm = new SMO();
 		svm.setBuildLogisticModels(true);
-		// // PolyKernel polyKernel = new PolyKernel();
-		// // polyKernel.setExponent(2);
-		// svm.setKernel(polyKernel);
-		filteredClassifier.setClassifier(svm);
+		svm.setNumFolds(5);
 
-		// Naive Bayes
-		//
-		// filteredClassifier.setClassifier(new NaiveBayes());
+		// PCA
+		// AttributeSelectedClassifier pca = new AttributeSelectedClassifier();
+		// pca.setEvaluator(new PrincipalComponents());
+		// Ranker rankerPCA = new Ranker();
+		// rankerPCA.setNumToSelect(30);
+		// pca.setSearch(rankerPCA);
+		// pca.setClassifier(svm);
 
-		// Select 50 most informative attributes, after this - SVM
-		//
-		// AttributeSelectedClassifier attributeSelectionClassifier = new
+		// Select most informative attributes, after this - PCA
+		// AttributeSelectedClassifier infoGain = new
 		// AttributeSelectedClassifier();
-		// attributeSelectionClassifier.setEvaluator(new
-		// InfoGainAttributeEval());
-		// Ranker ranker = new Ranker();
-		// ranker.setNumToSelect(50);
-		// attributeSelectionClassifier.setSearch(ranker);
-		// attributeSelectionClassifier.setClassifier(filteredClassifier);
-		// attributeSelectionClassifier.setClassifier(svm);
-		// filteredClassifier.setClassifier(attributeSelectionClassifier);
+		// infoGain.setEvaluator(new InfoGainAttributeEval());
+		// Ranker rankerInfoGain = new Ranker();
+		// rankerInfoGain.setNumToSelect(150);
+		// infoGain.setSearch(rankerInfoGain);
+		// infoGain.setClassifier(pca);
 
+		FilteredClassifier filteredClassifier = new FilteredClassifier();
+		MultiFilter graphemesFilter = this.initializeFiltersForGraphemes(trainingInstancesSet);
+		filteredClassifier.setFilter(graphemesFilter);
+		filteredClassifier.setClassifier(svm);
 		filteredClassifier.buildClassifier(trainingInstancesSet);
-
 		return filteredClassifier;
 	}
 
 	private MultiFilter initializeFiltersForGraphemes(Instances trainingInstancesSet) throws Exception {
 		StringToWordVector currentFilter = new StringToWordVector();
 		currentFilter.setAttributeIndices("1");
-		currentFilter.setAttributeNamePrefix("current_");
+		currentFilter.setAttributeNamePrefix("current_grapheme_");
 		currentFilter.setOutputWordCounts(false);
 		currentFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector previousFilter = new StringToWordVector();
 		previousFilter.setAttributeIndices("1");
-		previousFilter.setAttributeNamePrefix("previous_");
+		previousFilter.setAttributeNamePrefix("previous_grapheme_");
 		previousFilter.setOutputWordCounts(false);
 		previousFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector followingFilter = new StringToWordVector();
 		followingFilter.setAttributeIndices("1");
-		followingFilter.setAttributeNamePrefix("following_");
+		followingFilter.setAttributeNamePrefix("following_grapheme_");
 		followingFilter.setOutputWordCounts(false);
 		followingFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector previousTagsFilter = new StringToWordVector();
 		previousTagsFilter.setAttributeIndices("1");
-		previousTagsFilter.setAttributeNamePrefix("prev_tag_");
+		previousTagsFilter.setAttributeNamePrefix("previous_tag_");
 		previousTagsFilter.setOutputWordCounts(false);
 		previousTagsFilter.setTokenizer(new SpaceTokenizer());
 
 		StringToWordVector previousPreviousTagsFilter = new StringToWordVector();
 		previousPreviousTagsFilter.setAttributeIndices("1");
-		previousPreviousTagsFilter.setAttributeNamePrefix("prev_prev_");
+		previousPreviousTagsFilter.setAttributeNamePrefix("previous_previous_grapheme_");
 		previousPreviousTagsFilter.setOutputWordCounts(false);
 		previousPreviousTagsFilter.setTokenizer(new SpaceTokenizer());
 
