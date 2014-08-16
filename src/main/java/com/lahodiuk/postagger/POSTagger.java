@@ -31,10 +31,10 @@ public class POSTagger {
 		// Corpus downloaded from: http://opencorpora.org/?page=downloads
 		// (version without disambiguation)
 		List<TaggedSentence> taggedSentences = XMLCorpusReader.getTaggedSentences(
-				"/Users/yura/workspaces/pos-tagger/src/main/resources/annot.opcorpora.no_ambig.xml",
+				"src/main/resources/annot.opcorpora.no_ambig.xml",
 				MIN_NUMBER_OF_TOKENS);
 
-		HMMTagger hmmTagger = new HMMTagger(taggedSentences);
+		MEMMTagger tagger = new MEMMTagger(taggedSentences);
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
@@ -45,7 +45,7 @@ public class POSTagger {
 			if ("finish".equals(string)) {
 				break;
 			}
-			hmmTagger.inference(new Sentence(string));
+			tagger.inference(new Sentence(string));
 			System.out.println();
 		}
 	}
